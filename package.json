@@ -1,0 +1,28 @@
+{
+  "name": "webcodec-transcoding",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "https-server": "badcert docs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scaret/webcodec-transcoding.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/scaret/webcodec-transcoding/issues"
+  },
+  "homepage": "https://github.com/scaret/webcodec-transcoding#readme",
+  "dependencies": {
+    "badcert": "^2.0.0",
+    "webpack": "^5.41.1",
+    "webpack-cli": "^4.7.2"
+  }
+}
