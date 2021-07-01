@@ -62,17 +62,39 @@ class MP4Source {
   }
 
   onSamples(track_id, ref, samples) {
-    for (const sample of samples) {
-      const type = sample.is_sync ? "key" : "delta";
+    const trackInfo = this.info.tracks[track_id - 1];
+    // console.log("onSamples","trackInfo", trackInfo, "track_id", track_id, "ref", ref, "samples", samples);
 
-      const chunk = new EncodedVideoChunk({
-        type: type,
-        timestamp: sample.cts,
-        duration: sample.duration,
-        data: sample.data
-      });
+    let trunk;
+    if (trackInfo){
+      if (trackInfo.type === "video"){
+        for (const sample of samples) {
+          const type = sample.is_sync ? "key" : "delta";
 
-      this._onChunk(chunk);
+          const chunk = new EncodedVideoChunk({
+            type: type,
+            timestamp: sample.cts,
+            duration: sample.duration,
+            data: sample.data
+          });
+
+          this._onChunk(chunk, trackInfo);
+        }
+      }else if (trackInfo.type === "audio"){
+        for (const sample of samples) {
+          const type = sample.is_sync ? "key" : "delta";
+
+          const chunk = new EncodedAudioChunk({
+            type: type,
+            timestamp: sample.cts,
+            duration: sample.duration,
+            data: sample.data
+          });
+          this._onChunk(chunk, trackInfo);
+        }
+      }
+    }else{
+      console.error("Unrecognized sample", ...arguments);
     }
   }
 }
@@ -155,6 +177,7 @@ export class MP4Demuxer {
   async getConfig() {
     let info = await this.source.getInfo();
     this.track = info.videoTracks[0];
+    this.audioTrack = info.audioTracks[0];
 
     var extradata = this.getExtradata(this.source.getAvccBox());
 
@@ -169,6 +192,8 @@ export class MP4Demuxer {
   }
 
   start(onChunk) {
+    console.log("this.audioTrack", this.audioTrack);
+    this.source.start(this.audioTrack, onChunk);
     this.source.start(this.track, onChunk);
   }
 }

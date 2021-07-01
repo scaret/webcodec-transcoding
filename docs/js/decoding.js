@@ -15,7 +15,7 @@ const drawFrame = async function (f){
 
 let cntHandleFrame = 0;
 const handleFrame = function (f){
-    console.log("handleFrame", cntHandleFrame++, f);
+    // console.log("handleFrame", cntHandleFrame++, f);
     if (!lastVideoFrame
         || lastVideoFrame.displayWidth !== f.displayWidth
         || lastVideoFrame.displayHeight !== f.displayHeight
@@ -25,44 +25,112 @@ const handleFrame = function (f){
     drawFrame(f);
 }
 
-let demuxer = new MP4Demuxer("./v/oceans.mp4");
+let ac = null
+let destination = null
+function playAudioFrame(f){
+    const sourceNode = ac.createBufferSource();
+    sourceNode.buffer = f.buffer;
+    // console.log("playAudioFrame", f, sourceNode);
+    sourceNode.start(0);
+    sourceNode.connect(destination);
+}
 
-let decoder = new VideoDecoder({
+let cntHandleAudioFrame = 0;
+const handleAudioFrame = function (f){
+    // console.log("handleAudioFrame", cntHandleAudioFrame++, f);
+    playAudioFrame(f);
+}
+
+let demuxer = new MP4Demuxer("./v/oceans.mp4");
+window.demuxer = demuxer;
+
+let videoDecoder = new VideoDecoder({
     output: handleFrame,
     error: function(){
         console.error("XXX", arguments)
     },
 });
-window.decoder = decoder;
+window.videoDecoder = videoDecoder;
 
-let p = Promise.resolve();
 
-let clockRate = 24000;
+let audioDecoder = new AudioDecoder({
+    output: handleAudioFrame,
+    error: function(){
+        console.error("XXX", arguments)
+    },
+});
+window.videoDecoder = videoDecoder;
+
+
+const trackStates = {
+    // {p, cnt, }
+}
 
 let videoPlayed = false;
-
+let enableAudio = true;
+let enableVideo = true;
 const main = async ()=>{
+    ac = new AudioContext();
+    window.ac = ac;
+    destination = new MediaStreamAudioDestinationNode(ac);
+    window.destination = destination;
+    document.getElementById("audio").srcObject = destination.stream;
+
     const config = await demuxer.getConfig();
+    const info = await demuxer.source.getInfo();
     console.log("config", config);
 
-    decoder.configure(config);
-    let cnt = 0;
-    demuxer.start(async (chunk) => {
-        const index = cnt;
-        cnt++;
-        p = p.then(()=>{
+    console.log("info", info);
+    // console.log("info", JSON.stringify(info, null, 2));
+
+    enableAudio = document.getElementById("enableAudio").checked
+    enableVideo = document.getElementById("enableVideo").checked
+
+    videoDecoder.configure(config);
+    const audioDecoderConfig = {
+        codec: info.audioTracks[0].codec,
+        numberOfChannels: info.audioTracks[0].audio.channel_count,
+        sampleRate: info.audioTracks[0].audio.sample_rate,
+    };
+    console.log("audioDecoderConfig", audioDecoderConfig)
+    audioDecoder.configure(audioDecoderConfig)
+    demuxer.start(async (chunk, trackInfo) => {
+        let trackState = trackStates[trackInfo.id];
+        if (!trackState){
+            trackState = {
+                trackInfo: trackInfo,
+                cnt: 0,
+                p: Promise.resolve(),
+            }
+            trackStates[trackInfo.id] = trackState;
+        }
+        let index = trackState.cnt++;
+        trackState.p = trackState.p.then(()=>{
             return new Promise((resolve)=>{
-                console.log("demuxer onChunk", index, chunk);
-                decoder.decode(chunk);
-                if (!videoPlayed){
-                    videoPlayed = true;
-                    document.getElementById("video").play()
+                // console.log("demuxer onChunk", trackInfo.type, index, chunk);
+                if (enableVideo && trackInfo.type === "video"){
+                    videoDecoder.decode(chunk);
+                    if (!videoPlayed){
+                        videoPlayed = true;
+                        document.getElementById("video").play()
+                    }
+                    setTimeout(()=>{
+                        resolve();
+                    }, chunk.duration * 1000 / trackInfo.timescale);
+                }else if (enableAudio && trackInfo.type === "audio"){
+                    // console.log("chunk", chunk.data.byteLength, chunk, "trackInfo", trackInfo);
+                    if (!videoPlayed){
+                        videoPlayed = true;
+                        document.getElementById("video").play()
+                    }
+                    audioDecoder.decode(chunk);
+                    setTimeout(()=>{
+                        resolve();
+                    }, chunk.data.byteLength * 1000 * (trackInfo.audio.sample_size / 8) * trackInfo.audio.channel_count / trackInfo.audio.sample_rate);
                 }
-                setTimeout(()=>{
-                    resolve();
-                }, chunk.duration * 1000 / clockRate);
             })
         })
     })
 }
-main();
+
+document.getElementById("start").onclick = main;

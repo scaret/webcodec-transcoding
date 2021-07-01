@@ -3,6 +3,17 @@
     <body>
         <video src="v/oceans.mp4" controls muted id="video"></video>
         <canvas id="canvas"></canvas>
+        <br/>
+        <label>
+            <input type="checkbox" id="enableAudio" checked>
+            enableAudio
+        </label>
+        <label>
+            <input type="checkbox" id="enableVideo" checked>
+            enableVideo
+        </label>
+        <button id="start">start</button>
+        <audio id="audio" autoplay controls></audio>
         <script src="vendor/jquery-3.6.0.min.js"></script>
         <script src="vendor/mp4box.all.min.js"></script>
         <script src="js/decoding.js" type="module"></script>
