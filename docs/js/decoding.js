@@ -25,7 +25,7 @@ const handleFrame = function (f){
     drawFrame(f);
 }
 
-let demuxer = new MP4Demuxer("../v/oceans.mp4");
+let demuxer = new MP4Demuxer("./v/oceans.mp4");
 
 let decoder = new VideoDecoder({
     output: handleFrame,
