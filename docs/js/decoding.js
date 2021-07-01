@@ -39,6 +39,8 @@ let p = Promise.resolve();
 
 let clockRate = 24000;
 
+let videoPlayed = false;
+
 const main = async ()=>{
     const config = await demuxer.getConfig();
     console.log("config", config);
@@ -52,6 +54,10 @@ const main = async ()=>{
             return new Promise((resolve)=>{
                 console.log("demuxer onChunk", index, chunk);
                 decoder.decode(chunk);
+                if (!videoPlayed){
+                    videoPlayed = true;
+                    document.getElementById("video").play()
+                }
                 setTimeout(()=>{
                     resolve();
                 }, chunk.duration * 1000 / clockRate);
