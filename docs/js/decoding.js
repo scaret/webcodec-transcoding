@@ -28,9 +28,23 @@ const handleFrame = function (f){
 let ac = null
 let destination = null
 function playAudioFrame(f){
+    const {numberOfChannels, numberOfFrames, sampleRate} = f;
+    // const audioBuffer = ac.createBuffer(numberOfChannels, numberOfFrames, sampleRate);
+    const buffer = new AudioBuffer({
+        length: numberOfFrames,
+        numberOfChannels,
+        sampleRate,
+    });
+    for (let planeIndex = 0; planeIndex < numberOfChannels; planeIndex++){
+        const size = f.allocationSize({ planeIndex});
+        const data = new ArrayBuffer(size);
+        f.copyTo(data, { planeIndex: planeIndex });
+
+        buffer.getChannelData(planeIndex).set(new Float32Array(data));
+    }
+
     const sourceNode = ac.createBufferSource();
-    sourceNode.buffer = f.buffer;
-    // console.log("playAudioFrame", f, sourceNode);
+    sourceNode.buffer = buffer;
     sourceNode.start(0);
     sourceNode.connect(destination);
 }
@@ -109,6 +123,7 @@ const main = async ()=>{
             return new Promise((resolve)=>{
                 // console.log("demuxer onChunk", trackInfo.type, index, chunk);
                 if (enableVideo && trackInfo.type === "video"){
+                    // console.log("chunk", chunk)
                     videoDecoder.decode(chunk);
                     if (!videoPlayed){
                         videoPlayed = true;
@@ -124,9 +139,10 @@ const main = async ()=>{
                         document.getElementById("video").play()
                     }
                     audioDecoder.decode(chunk);
+                    // console.log("chunk", chunk)
                     setTimeout(()=>{
                         resolve();
-                    }, chunk.data.byteLength * 1000 * (trackInfo.audio.sample_size / 8) * trackInfo.audio.channel_count / trackInfo.audio.sample_rate);
+                    }, chunk.byteLength * 1000 * (trackInfo.audio.sample_size / 8) * trackInfo.audio.channel_count / trackInfo.audio.sample_rate);
                 }
             })
         })
